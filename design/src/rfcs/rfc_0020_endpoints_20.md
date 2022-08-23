@@ -48,9 +48,9 @@ be generated.
 > code.
 
 SDK middleware will be updated to use the new [`smithy_types::Endpoint`](#the-endpoint-struct). During request
-construction in `make_operation`, a [smithy endpoint](#the-endpoint-struct) will be inserted into the property bag. The
+construction in `make_operation`, a [Smithy endpoint](#the-endpoint-struct) will be inserted into the property bag. The
 endpoint middleware will be updated to extract the Smithy endpoint from the property bag and set the request endpoint &
-signing information accordingly (see: [Converting to AWS Endpoint](#converting-a-smithy-endpoint-to-an-aws-endpoint).
+signing information accordingly (see: [Converting to AWS Endpoint](#converting-a-smithy-endpoint-to-an-aws-endpoint)).
 
 The following flow chart traces the endpoints 2.0 influence on a request via the green boxes.
 
@@ -122,8 +122,8 @@ This RFC proposes making the following changes:
    Endpoint that can be set will be passed in as the `SDK::Endpoint` built-in. This will be renamed to `endpoint_uri`
    for clarity. **All** AWS services **MUST** accept the `SDK::Endpoint` built-in.
 2. For complex, service-specific behavior, customers will be able to provide a service specific endpoint resolver at
-   client construction time. This resolver will be parameterized with the service-specific parameters type, (
-   eg. `aws_sdk_s3::endpoint::Params`). Finally, customers will be able to access the `default_resolver()` for S3
+   client construction time. This resolver will be parameterized with the service-specific parameters type,
+   (e.g. `aws_sdk_s3::endpoint::Params`). Finally, customers will be able to access the `default_resolver()` for S3
    directly. This will enable them to utilize the default S3 endpoint resolver in their resolver implementation.
 
 **Example: overriding the endpoint URI globally**
@@ -305,8 +305,8 @@ To describe how this feature will work, let's take a step-by-step path through e
 
 1. A user defines a service client, possibly with some client specific configuration like region.
 
-   > `@clientContextParams` are code generated onto the client `Config`
-   . [Code generating `@clientContextParams`](#code-generating-client-context-params)
+   > `@clientContextParams` are code generated onto the client `Config`.
+     [Code generating `@clientContextParams`](#code-generating-client-context-params)
 
 2. A user invokes an operation like `s3::GetObject`. A [params object is created](#creating-params). In the body
    of `make_operation()`, this is passed to `config.endpoint_resolver` to load a Smithy-native endpoint. The Smithy
