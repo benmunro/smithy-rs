@@ -107,7 +107,7 @@ The trait itself would then be parameterized by service-specific endpoint parame
 from the endpoint parameters we might use for a service like DynamoDB which, today, doesn't have any custom endpoint
 behavior.
 
-Going forward we want to provide two different avenues for customers to customize endpoints:
+We will provide two different avenues for customers to customize endpoints:
 
 1. Configuration driven URL override. This mechanism hasn't been specified, but suppose that the Rust SDK supported
    an `SDK_ENDPOINT` environment variable. This variable would be an input to the existing endpoint resolver.
@@ -123,7 +123,7 @@ This RFC proposes making the following changes:
    for clarity. **All** AWS services **MUST** accept the `SDK::Endpoint` built-in.
 2. For complex, service-specific behavior, customers will be able to provide a service specific endpoint resolver at
    client construction time. This resolver will be parameterized with the service-specific parameters type, (
-   eg. `aws_sdk_s3::endpoint::Params`). Finally, customers will be able to access the `default_resolver()` for S3
+   eg. `aws_sdk_s3::endpoint::Params`). Finally, customers will be able to access the `DefaultResolver` for S3
    directly. This will enable them to utilize the default S3 endpoint resolver in their resolver implementation.
 
 **Example: overriding the endpoint URI globally**
@@ -140,12 +140,12 @@ async fn main() {
 
 ```rust
 /// Resolve to Localhost when an environment variable is set
-struct CustomDdbResolver;
+struct CustomDdbResolver { base_resolver: aws_sdk_dynamodb::endpoint::DefaultResolver }
 
 impl ResolveEndpoint<aws_sdk_dynamodb::endpoint::Params> for CustomDdbResolver {
     fn resolve_endpoint(&self, params: &Params) -> Result<Endpoint, EndpointResolutionError> {
         // custom resolver to redirect to DDB local if a flag is set
-        let base_endpoint = aws_sdk_dynamodb::endpoint::default_resolver().resolve_endpoint(params).expect("valid endpoint should be resolved");
+        let base_endpoint = self.base_resolver.resolve_endpoint(params).expect("valid endpoint should be resolved");
         if env::var("LOCAL") == Ok("true") {
             // update the URI on the returned endpoint to localhost while preserving the other properties
             base_endpoint.builder().uri("http://localhost:8888").build()
@@ -157,7 +157,7 @@ impl ResolveEndpoint<aws_sdk_dynamodb::endpoint::Params> for CustomDdbResolver {
 
 async fn main() {
     let conf = aws_config::load_from_env().await;
-    let ddb_conf = aws_sdk_dynamodb::config::Builder::from(&conf).endpoint_resolver(CustomDdbResolver);
+    let ddb_conf = aws_sdk_dynamodb::config::Builder::from(&conf).endpoint_resolver(CustomDdbResolver { base_resolver: DefaultResolver::new() });
     let dynamodb = aws_sdk_dynamodb::Client::from_conf(ddb_conf);
 }
 ```
@@ -184,26 +184,9 @@ An example of the `Endpoint` struct is below. This struct will be in `aws-smithy
 gated with documentation warning about stability.
 
 #### The Endpoint Struct
-
 ```rust
 // module: `aws_smithy_types::endpoint`
-// potential optimization to reduce / remove allocations for keys which are almost always static
-// this can also just be `String`
-type MaybeStatic<T> = Cow<'static, T>;
-
-/// Endpoint
-#[derive(Debug, PartialEq)]
-pub struct Endpoint {
-    // Note that this allows `Endpoint` to contain an invalid URI. During conversion to an actual endpoint, the
-    // the middleware can fail, returning a `ConstructionFailure` to the user
-    url: MaybeStatic<str>,
-    headers: HashMap<MaybeStatic<str>, Vec<MaybeStatic<str>>>,
-    properties: HashMap<MaybeStatic<str>, aws_smithy_types::Document>,
-}
-
-// not shown:
-// - impl block with standard accessors
-// - builder, designed to be invoked / used by generated code
+{{#include ../../../rust-runtime/aws-smithy-types/src/endpoint.rs:endpoint}}
 ```
 
 > **What's an Endpoint property?**
@@ -211,16 +194,6 @@ pub struct Endpoint {
 > Endpoint properties, on their own, have no intrinsic meaning. Endpoint properties have established conventions for AWS
 > SDKs. Other Smithy implementors may choose a different pattern. For AWS SDKs, the `authSchemes` key is an ordered list
 > of authentication/signing schemes supported by the Endpoint that the SDK should use.
-
-To perform produce an `Endpoint` struct we have a generic `ResolveEndpoint` trait which will be native to Smithy:
-
-```rust
-// module: `smithy_types::endpoint` or `aws_smithy_client`??
-pub trait ResolveEndpoint<Params>: Send + Sync {
-    /// Resolves an `Endpoint` for `Params`
-    fn resolve_endpoint(&self, params: &Params) -> Result<aws_smithy_types::Endpoint, EndpointResolutionError>;
-}
-```
 
 All Smithy services that have the `@endpointRules` trait applied to the service shape will code generate a default
 endpoint resolver implementation. The default endpoint resolver **MUST** be public, so that customers can delegate to it
@@ -317,6 +290,9 @@ To describe how this feature will work, let's take a step-by-step path through e
 
 The other major piece of implementation required is actually implementing the rules engine. To learn more about
 rules-engine internals, skip to [implementing the rules engine](#implementing-the-rules-engine).
+
+All of these pieces are orchestrated by the `EndpointDecorator`. This has the additional advantage of being a singular
+place where endpoints can be enabled or disabled from codegen.
 
 ### Code generating client context params
 
@@ -556,19 +532,19 @@ Changes checklist
 **Rules Engine**
 
 - [ ] Endpoint rules code generator
-- [ ] Endpoint params code generator
+- [x] Endpoint params code generator
 - [ ] Endpoint tests code generator
-- [ ] Implement ruleset standard library functions as inlineables. Note: pending future refactoring work, the `aws.`
+- [x] Implement ruleset standard library functions as inlineables. Note: pending future refactoring work, the `aws.`
   functions will need to be integrated into the smithy core endpoint resolver.
-- [ ] Implement partition function & ability to customize partitions
+- [x] Implement partition function & ability to customize partitions
   **SDK Integration**
-- [ ] Add a Smithy endpoint resolver to the service config, with a default that loads the default endpoint resolver.
+- [x] Add a Smithy endpoint resolver to the service config, with a default that loads the default endpoint resolver.
 - [ ] Update `SdkConfig` to accept a URI instead of an implementation of `ResolveAwsEndpoint`. This change can be done
   standalone.
 - [ ] Remove/deprecate the `ResolveAwsEndpoint` trait and replace it with the vanilla Smithy trait. Potentially, provide
   a bridge.
-- [ ] Update `make_operation` to write a [`smithy::Endpoint`](#the-endpoint-struct) into the property bag
-- [ ] Update AWS Endpoint middleware to work off of a [`smithy::Endpoint`](#the-endpoint-struct)
+- [ ] Update `make_operation` to write a [`Result<smithy::Endpoint, Err>`](#the-endpoint-struct) into the property bag
+- [ ] Update AWS Endpoint middleware to work off of a [`Result<smithy::Endpoint, Err>`](#the-endpoint-struct)
 - [ ] Wire the endpoint override to the `SDK::Endpoint` builtIn parameter
 
 Alternative Designs
