@@ -48,6 +48,7 @@ class PythonServerModuleGenerator(
                 renderPySocketType()
                 renderPyLogging()
                 renderPyMiddlewareTypes()
+                renderPyLambdaTypes()
                 renderPyApplicationType()
             }
         }
@@ -157,6 +158,22 @@ class PythonServerModuleGenerator(
                 "import sys; sys.modules['$libName.middleware'] = middleware"
             );
             m.add_submodule(middleware)?;
+            """,
+            *codegenScope,
+        )
+    }
+
+    private fun RustWriter.renderPyLambdaTypes() {
+        rustTemplate(
+            """
+            let lambda_ = #{pyo3}::types::PyModule::new(py, "lambda_")?;
+            lambda_.add_class::<#{SmithyPython}::lambda::PyLambdaContext>()?;
+            pyo3::py_run!(
+                py,
+                lambda_,
+                "import sys; sys.modules['$libName.lambda_'] = lambda_"
+            );
+            m.add_submodule(lambda_)?;
             """,
             *codegenScope,
         )
