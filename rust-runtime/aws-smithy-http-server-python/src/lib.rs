@@ -11,6 +11,7 @@
 //!
 //! [PyO3]: https://pyo3.rs/
 
+pub mod context;
 mod error;
 pub mod lambda;
 pub mod logging;
