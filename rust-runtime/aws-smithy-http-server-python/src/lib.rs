@@ -12,6 +12,7 @@
 //! [PyO3]: https://pyo3.rs/
 
 mod error;
+pub mod lambda;
 pub mod logging;
 pub mod middleware;
 mod server;
