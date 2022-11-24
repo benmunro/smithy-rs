@@ -9,7 +9,7 @@ from threading import Lock
 from dataclasses import dataclass
 from typing import List, Optional, Callable, Awaitable
 
-from pokemon_service_server_sdk import App  # type: ignore
+from pokemon_service_server_sdk import App
 from pokemon_service_server_sdk.error import ResourceNotFoundException  # type: ignore
 from pokemon_service_server_sdk.input import (  # type: ignore
     DoNothingInput,
