@@ -531,7 +531,6 @@ class ServerBuilderGenerator(
                                     *codegenScope,
                                 )
                             } else {
-                                val into = ".into()"
                                 if (member.hasNonNullDefault()) {
                                     rustTemplate(
                                         """#{default:W}""",
@@ -541,7 +540,7 @@ class ServerBuilderGenerator(
                                             symbolProvider,
                                             member,
                                         ) {
-                                            ".or_else(|| Some($it$into))"
+                                            ".or_else(|| Some($it.into()))"
                                         },
                                     )
                                 }
@@ -675,7 +674,7 @@ fun renderDefaultBuilder(model: Model, runtimeConfig: RuntimeConfig, symbolProvi
                     else -> throw CodegenException("Default value for $name is unsupported or cannot exist")
                 }
             }
-            is BlobShape -> rust(wrap("Vec::new()"))
+            is BlobShape -> rust(wrap("Default::default()"))
             else -> throw CodegenException("Default value for $name is unsupported or cannot exist")
         }
     }

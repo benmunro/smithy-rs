@@ -7,7 +7,14 @@ package software.amazon.smithy.rust.codegen.server.smithy.generators
 
 import software.amazon.smithy.codegen.core.Symbol
 import software.amazon.smithy.codegen.core.SymbolProvider
+import software.amazon.smithy.model.shapes.BooleanShape
+import software.amazon.smithy.model.shapes.ByteShape
+import software.amazon.smithy.model.shapes.DoubleShape
+import software.amazon.smithy.model.shapes.FloatShape
+import software.amazon.smithy.model.shapes.IntegerShape
+import software.amazon.smithy.model.shapes.LongShape
 import software.amazon.smithy.model.shapes.MemberShape
+import software.amazon.smithy.model.shapes.ShortShape
 import software.amazon.smithy.model.shapes.StructureShape
 import software.amazon.smithy.rust.codegen.core.rustlang.RustWriter
 import software.amazon.smithy.rust.codegen.core.rustlang.Visibility
@@ -159,7 +166,16 @@ class ServerBuilderGeneratorWithoutPublicConstrainedTypes(
 
                 withBlock("$memberName: self.$memberName", ",") {
                     if (member.hasNonNullDefault()) {
-                        rustTemplate("""#{default:W}""", "default" to renderDefaultBuilder(model, runtimeConfig, symbolProvider, member) { ".or_else(|| Some($it.into()))" })
+                        rustTemplate(
+                            """#{default:W}""",
+                            "default" to renderDefaultBuilder(model, runtimeConfig, symbolProvider, member) {
+                                val set = when (model.expectShape(member.target)) {
+                                    is ByteShape, is ShortShape, is IntegerShape, is LongShape, is FloatShape, is DoubleShape, is BooleanShape -> ".or("
+                                    else -> ".or_else(||"
+                                }
+                                "$set Some($it))"
+                            },
+                        )
                     }
                     serverBuilderConstraintViolations.forMember(member)?.also {
                         rust(".ok_or(ConstraintViolation::${it.name()})?")
