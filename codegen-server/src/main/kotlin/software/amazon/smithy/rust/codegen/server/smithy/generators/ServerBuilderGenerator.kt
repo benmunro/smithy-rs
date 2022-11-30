@@ -506,6 +506,7 @@ class ServerBuilderGenerator(
         writer.rustBlock("#T", structureSymbol) {
             for (member in members) {
                 val memberName = symbolProvider.toMemberName(member)
+                val symbol = symbolProvider.toSymbol(member)
 
                 withBlock("$memberName: self.$memberName", ",") {
                     // Write the modifier(s).
@@ -530,6 +531,7 @@ class ServerBuilderGenerator(
                                     *codegenScope,
                                 )
                             } else {
+                                val into = ".into()"
                                 if (member.hasNonNullDefault()) {
                                     rustTemplate(
                                         """#{default:W}""",
@@ -538,7 +540,9 @@ class ServerBuilderGenerator(
                                             runtimeConfig,
                                             symbolProvider,
                                             member,
-                                        ) { ".or_else(|| Some($it.into()))" },
+                                        ) {
+                                            ".or_else(|| Some($it$into))"
+                                        },
                                     )
                                 }
                                 rustTemplate(
@@ -671,7 +675,7 @@ fun renderDefaultBuilder(model: Model, runtimeConfig: RuntimeConfig, symbolProvi
                     else -> throw CodegenException("Default value for $name is unsupported or cannot exist")
                 }
             }
-            is BlobShape -> rust(wrap(RuntimeType.ByteStream(runtimeConfig).toSymbol().fullName + "::default()"))
+            is BlobShape -> rust(wrap("Vec::new()"))
             else -> throw CodegenException("Default value for $name is unsupported or cannot exist")
         }
     }
