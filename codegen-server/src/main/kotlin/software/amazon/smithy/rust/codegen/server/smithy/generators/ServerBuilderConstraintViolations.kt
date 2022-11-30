@@ -69,8 +69,11 @@ class ServerBuilderConstraintViolations(
         writer.rustBlock("pub${ if (visibility == Visibility.PUBCRATE) " (crate) " else "" } enum $constraintViolationSymbolName") {
             renderConstraintViolations(writer)
         }
-        renderImplDisplayConstraintViolation(writer)
-        writer.rust("impl #T for ConstraintViolation { }", RuntimeType.StdError)
+
+        if (all.isNotEmpty()) {
+            renderImplDisplayConstraintViolation(writer)
+            writer.rust("impl #T for ConstraintViolation { }", RuntimeType.StdError)
+        }
 
         if (shouldRenderAsValidationExceptionFieldList) {
             renderAsValidationExceptionFieldList(writer)

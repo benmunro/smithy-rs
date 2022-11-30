@@ -66,9 +66,9 @@ class ServerBuilderGeneratorWithoutPublicConstrainedTypes(
     private val symbolProvider = codegenContext.symbolProvider
     private val members: List<MemberShape> = shape.allMembers.values.toList()
     private val structureSymbol = symbolProvider.toSymbol(shape)
+    private val runtimeConfig = codegenContext.runtimeConfig
 
     private val builderSymbol = shape.serverBuilderSymbol(symbolProvider, false)
-    private val moduleName = builderSymbol.namespace.split("::").last()
     private val isBuilderFallible = hasFallibleBuilder(shape, symbolProvider)
     private val serverBuilderConstraintViolations =
         ServerBuilderConstraintViolations(codegenContext, shape, builderTakesInUnconstrainedTypes = false)
@@ -158,6 +158,9 @@ class ServerBuilderGeneratorWithoutPublicConstrainedTypes(
                 val memberName = symbolProvider.toMemberName(member)
 
                 withBlock("$memberName: self.$memberName", ",") {
+                    if (member.hasNonNullDefault()) {
+                        rustTemplate("""#{default:W}""", "default" to renderDefaultBuilder(model, runtimeConfig, symbolProvider, member) { ".or_else(|| Some($it.into()))" })
+                    }
                     serverBuilderConstraintViolations.forMember(member)?.also {
                         rust(".ok_or(ConstraintViolation::${it.name()})?")
                     }
