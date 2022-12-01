@@ -171,7 +171,7 @@ impl ImdsCredentialsProvider {
         if self.imds_disabled() {
             tracing::debug!("IMDS disabled because $AWS_EC2_METADATA_DISABLED was set to `true`");
             return Err(CredentialsError::not_loaded(
-                "IMDS disabled by $AWS_ECS_METADATA_DISABLED",
+                "IMDS disabled by $AWS_EC2_METADATA_DISABLED",
             ));
         }
         tracing::debug!("loading credentials from IMDS");
